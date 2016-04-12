@@ -2,10 +2,11 @@ import pdb
 import json
 
 from OCC.Bnd import Bnd_Box
-from OCC.BRepMesh import *
-from OCC.BRepBndLib import *
-from OCC.GProp import *
-from OCC.BRepGProp import *
+from OCC.BRepMesh import BRepMesh_IncrementalMesh
+from OCC.BRepBndLib import brepbndlib_Add
+from OCC.GProp import GProp_GProps
+from OCC.BRepGProp import brepgprop_VolumeProperties
+from OCC.TColStd import TColStd_SequenceOfAsciiString
 from OCC.STEPControl import STEPControl_Reader
 from OCC.IFSelect import IFSelect_RetDone, IFSelect_ItemsByEntity
 
@@ -22,18 +23,18 @@ if status == IFSelect_RetDone:  # check status
     aResShape = step_reader.Shape(1)
 
     # Units
-    length = OCC.TColStd.TColStd_SequenceOfAsciiString()
-    angles = OCC.TColStd.TColStd_SequenceOfAsciiString()
-    solid_angles = OCC.TColStd.TColStd_SequenceOfAsciiString()
+    length = TColStd_SequenceOfAsciiString()
+    angles = TColStd_SequenceOfAsciiString()
+    solid_angles = TColStd_SequenceOfAsciiString()
     step_reader.FileUnits(length, angles, solid_angles)
     print("length units:", length.First().ToCString())
 
     # bounding box
-    bbox = OCC.Bnd.Bnd_Box()
+    bbox = Bnd_Box()
     deflection = 0.01
-    OCC.BRepMesh.BRepMesh_IncrementalMesh(aResShape, deflection)
+    BRepMesh_IncrementalMesh(aResShape, deflection)
 
-    OCC.BRepBndLib.brepbndlib_Add(aResShape, bbox)
+    brepbndlib_Add(aResShape, bbox)
     xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
     print("xmin", xmin)
     print("ymin", ymin)
@@ -46,8 +47,8 @@ if status == IFSelect_RetDone:  # check status
     # pdb.set_trace()
 
     # Volume of solid
-    props = OCC.GProp.GProp_GProps()
-    OCC.BRepGProp.brepgprop_VolumeProperties(aResShape, props)
+    props = GProp_GProps()
+    brepgprop_VolumeProperties(aResShape, props)
     print("Volume: ", props.Mass())
 
     result = {'bounding_box_volume': bnd_box_volume(bbox),
