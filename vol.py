@@ -2,6 +2,7 @@ import pdb
 import json
 
 from OCC.Bnd import Bnd_Box
+from OCC.BRepMesh import *
 from OCC.BRepBndLib import *
 from OCC.GProp import *
 from OCC.BRepGProp import *
@@ -29,6 +30,9 @@ if status == IFSelect_RetDone:  # check status
 
     # bounding box
     bbox = OCC.Bnd.Bnd_Box()
+    deflection = 0.01
+    OCC.BRepMesh.BRepMesh_IncrementalMesh(aResShape, deflection)
+
     OCC.BRepBndLib.brepbndlib_Add(aResShape, bbox)
     xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
     print("xmin", xmin)
@@ -38,6 +42,8 @@ if status == IFSelect_RetDone:  # check status
     print("ymax", ymax)
     print("zmax", zmax)
     print("Bounding Box Volume:", bnd_box_volume(bbox))
+
+    # pdb.set_trace()
 
     # Volume of solid
     props = OCC.GProp.GProp_GProps()
