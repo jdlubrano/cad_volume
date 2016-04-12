@@ -1,4 +1,6 @@
 import pdb
+import json
+
 from OCC.Bnd import Bnd_Box
 from OCC.BRepBndLib import *
 from OCC.GProp import *
@@ -41,6 +43,12 @@ if status == IFSelect_RetDone:  # check status
     props = OCC.GProp.GProp_GProps()
     OCC.BRepGProp.brepgprop_VolumeProperties(aResShape, props)
     print("Volume: ", props.Mass())
+
+    result = {'bounding_box_volume': bnd_box_volume(bbox),
+            'solid_volume': props.Mass(),
+            'units': length.First().ToCString()}
+
+    print(json.dumps(result))
 
 else:
     print("Error: can't read file.")
