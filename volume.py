@@ -1,6 +1,6 @@
 import getopt
 import json
-import pdb
+# import pdb
 import sys
 
 from OCC.Bnd import Bnd_Box
@@ -43,7 +43,6 @@ def analyze_file(filename):
     angles = TColStd_SequenceOfAsciiString()
     solid_angles = TColStd_SequenceOfAsciiString()
     step_reader.FileUnits(length, angles, solid_angles)
-    pdb.set_trace()
 
     # bounding box
     bbox = Bnd_Box()
