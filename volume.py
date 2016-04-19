@@ -1,16 +1,21 @@
 import getopt
 import json
-# import pdb
+import math
+import pdb
 import sys
 
 from OCC.Bnd import Bnd_Box
 from OCC.BRepMesh import BRepMesh_IncrementalMesh
 from OCC.BRepBndLib import brepbndlib_Add
 from OCC.GProp import GProp_GProps
+from OCC.gp import *
 from OCC.BRepGProp import brepgprop_VolumeProperties
+from OCC.BRepAlgoAPI import BRepAlgoAPI_Cut
+from OCC.BRepPrimAPI import BRepPrimAPI_MakeCylinder
 from OCC.TColStd import TColStd_SequenceOfAsciiString
 from OCC.STEPControl import STEPControl_Reader
 from OCC.IFSelect import IFSelect_RetDone, IFSelect_ItemsByEntity
+from OCC.Display.SimpleGui import init_display
 
 def calculate_bnd_box(bbox):
   xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
@@ -21,8 +26,63 @@ def calculate_bnd_box(bbox):
     'volume': x * y * z,
     'x_length': x,
     'y_length': y,
-    'z_length': z
+    'z_length': z,
+    'x_min': xmin,
+    'x_max': xmax,
+    'y_min': ymin,
+    'y_max': ymax,
+    'z_min': zmin,
+    'z_max': zmax
   }
+
+def orient_cylinder(bounding_box):
+  lengths = [ i for i in bounding_box.keys() if i.endswith('length') ]
+  lengths_only = { key: bounding_box[key] for key in lengths }
+  longest = max(lengths_only.values())
+  longest_dimension = lengths_only.keys()[lengths_only.values().index(longest)]
+
+  axis_direction = None
+  if longest_dimension == 'x_length':
+    axis_direction = gp_Dir(gp_XYZ(1,0,0))
+    axis_origin = gp_Pnt(
+      bounding_box['x_min'],
+      (bounding_box['y_min'] + bounding_box['y_max']) / 2,
+      (bounding_box['z_min'] + bounding_box['z_max']) / 2
+    )
+  elif longest_dimension == 'y_length':
+    axis_direction = gp_Dir(gp_XYZ(0,1,0))
+    axis_origin = gp_Pnt(
+      (bounding_box['x_min'] + bounding_box['x_max']) / 2,
+      bounding_box['y_min'],
+      (bounding_box['z_min'] + bounding_box['z_max']) / 2
+    )
+  else:
+    axis_direction = gp_Dir(gp_XYZ(0,0,1))
+    axis_origin = gp_Pnt(
+      (bounding_box['x_min'] + bounding_box['x_max']) / 2,
+      (bounding_box['y_min'] + bounding_box['y_max']) / 2,
+      bounding_box['z_min']
+    )
+
+  axis = gp_Ax2(axis_origin, axis_direction)
+
+  # radius as the diagonal of bounding box
+  dimensions = lengths_only.values()
+  dimensions.sort()
+  short_dimensions = dimensions[0:2]
+  diag = math.sqrt(sum([i ** 2 for i in short_dimensions]))
+  return axis, diag / 2, longest
+
+def calculate_bnd_cyl(shape, bounding_box):
+  # cylinder with diagonal of smaller face of bounding box
+  axis, radius, height = orient_cylinder(bounding_box)
+  cylinder = BRepPrimAPI_MakeCylinder(axis, radius, height)
+  display, start_display, add_menu, add_function_to_menu = init_display()
+  display.DisplayShape(shape, update=True)
+  display.DisplayShape(cylinder.Shape(), update=True)
+  start_display()
+  pdb.set_trace()
+  cut = BRepAlgoAPI_Cut(shape, cylinder)
 
 def analyze_file(filename):
   step_reader = STEPControl_Reader()
@@ -59,6 +119,8 @@ def analyze_file(filename):
     brepgprop_VolumeProperties(aResShape, props)
 
     bounding_box = calculate_bnd_box(bbox)
+
+    bounding_cylinder = calculate_bnd_cyl(aResShape, bounding_box)
 
     result = {'bounding_box_volume': bounding_box['volume'],
               'mesh_volume': props.Mass(),
