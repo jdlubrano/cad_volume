@@ -15,7 +15,12 @@ from OCC.BRepPrimAPI import BRepPrimAPI_MakeCylinder
 from OCC.TColStd import TColStd_SequenceOfAsciiString
 from OCC.STEPControl import STEPControl_Reader
 from OCC.IFSelect import IFSelect_RetDone, IFSelect_ItemsByEntity
-from OCC.Display.SimpleGui import init_display
+
+def display_shapes(shapes):
+  from OCC.Display.SimpleGui import init_display
+  display, start_display, add_menu, add_function_to_menu = init_display()
+  [display.DisplayShape(shape, update=True) for shape in shapes]
+  start_display()
 
 def calculate_bnd_box(bbox):
   xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
@@ -35,12 +40,24 @@ def calculate_bnd_box(bbox):
     'z_max': zmax
   }
 
-def orient_cylinder(bounding_box):
+def pick_lengths(bounding_box):
   lengths = [ i for i in bounding_box.keys() if i.endswith('length') ]
-  lengths_only = { key: bounding_box[key] for key in lengths }
-  longest = max(lengths_only.values())
-  longest_dimension = lengths_only.keys()[lengths_only.values().index(longest)]
+  return { key: bounding_box[key] for key in lengths }
 
+def get_longest_dimension(bounding_box):
+  lengths_only = pick_lengths(bounding_box)
+  longest = max(pick_lengths(bounding_box).values())
+  return longest, lengths_only.keys()[lengths_only.values().index(longest)]
+
+def second_longest_dimension(bounding_box):
+  lengths_only = pick_lengths(bounding_box)
+  lengths = lengths_only.values()
+  lengths.sort()
+  return lengths[1]
+
+def determine_axis(bounding_box):
+  l, longest_dimension = get_longest_dimension(bounding_box)
+  axis_origin = None
   axis_direction = None
   if longest_dimension == 'x_length':
     axis_direction = gp_Dir(gp_XYZ(1,0,0))
@@ -64,25 +81,46 @@ def orient_cylinder(bounding_box):
       bounding_box['z_min']
     )
 
-  axis = gp_Ax2(axis_origin, axis_direction)
+  return gp_Ax2(axis_origin, axis_direction)
 
+def orient_cylinder(bounding_box):
   # radius as the diagonal of bounding box
+  height = get_longest_dimension(bounding_box)
   dimensions = lengths_only.values()
   dimensions.sort()
   short_dimensions = dimensions[0:2]
   diag = math.sqrt(sum([i ** 2 for i in short_dimensions]))
-  return axis, diag / 2, longest
+  return axis, longest
 
-def calculate_bnd_cyl(shape, bounding_box):
+def cylinder_volume(axis, radius, height):
+  return calculate_volume(cylinder.Shape()), calculate_volume(cut.Shape())
+
+def cylinder_cut_excess_volume(shape, cylinder):
+  cut = BRepAlgoAPI_Cut(shape, cylinder.Shape())
+  return calculate_volume(cut.Shape())
+
+def calculate_bounding_cylinder(shape, bounding_box):
   # cylinder with diagonal of smaller face of bounding box
-  axis, radius, height = orient_cylinder(bounding_box)
-  cylinder = BRepPrimAPI_MakeCylinder(axis, radius, height)
-  display, start_display, add_menu, add_function_to_menu = init_display()
-  display.DisplayShape(shape, update=True)
-  display.DisplayShape(cylinder.Shape(), update=True)
-  start_display()
-  pdb.set_trace()
-  cut = BRepAlgoAPI_Cut(shape, cylinder)
+  axis = determine_axis(bounding_box)
+  height, longest_dimension = get_longest_dimension(bounding_box)
+
+  cylinder = None
+  cylinder_vol = 0
+  cut_vol = 1
+  radius = second_longest_dimension(bounding_box) / 2
+
+  while cut_vol > 0.0:
+    cylinder = BRepPrimAPI_MakeCylinder(axis, radius, height)
+    cylinder_vol = calculate_volume(cylinder.Shape())
+    cut_vol = cylinder_cut_excess_volume(shape, cylinder)
+    radius = radius + 0.1
+
+  return cylinder
+
+def calculate_volume(shape):
+  props = GProp_GProps()
+  brepgprop_VolumeProperties(shape, props)
+  return props.Mass()
 
 def analyze_file(filename):
   step_reader = STEPControl_Reader()
@@ -112,20 +150,14 @@ def analyze_file(filename):
     brepbndlib_Add(aResShape, bbox)
     xmin, ymin, zmin, xmax, ymax, zmax = bbox.Get()
 
-    # pdb.set_trace()
-
-    # Volume of solid
-    props = GProp_GProps()
-    brepgprop_VolumeProperties(aResShape, props)
-
     bounding_box = calculate_bnd_box(bbox)
 
-    bounding_cylinder = calculate_bnd_cyl(aResShape, bounding_box)
+    bounding_cylinder = calculate_bounding_cylinder(aResShape, bounding_box)
 
     result = {'bounding_box_volume': bounding_box['volume'],
-              'mesh_volume': props.Mass(),
+              'mesh_volume': calculate_volume(aResShape),
               'mesh_surface_area': None,
-              'cylinder_volume': None,
+              'cylinder_volume': calculate_volume(bounding_cylinder.Shape()),
               'convex_hull_volume': None,
               'euler_number': None,
               'units': length.First().ToCString()}
