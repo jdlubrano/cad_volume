@@ -119,7 +119,7 @@ def cylinder_dict(cylinder, cut, radius, height):
   return {
       'radius': radius,
       'height': height,
-      'cylinder_volume': height * (radius ** 2) * math.pi,
+      'cylinder_volume': calculate_volume(cylinder.Shape()),
       'cylinder': cylinder,
       'cut': cut,
       'cut_vol': calculate_volume(cut.Shape())
@@ -156,7 +156,7 @@ def smallest_max_cylinder(shape, bounding_box):
 
   lengths = pick_lengths(bounding_box)
   face_sides = [ value for key, value in lengths.iteritems() if key != longest_length ]
-  radius = math.sqrt(sum([i ** 2 for i in face_sides]))
+  radius = math.sqrt(sum([i ** 2 for i in face_sides])) / 2 # diagonal / 2
 
   axis = get_axis(longest_dimension, bounding_box)
   cylinder = BRepPrimAPI_MakeCylinder(axis, radius, height)
@@ -217,7 +217,7 @@ def analyze_file(filename):
               },
               'convex_hull_volume': None,
               'euler_number': None,
-              'units': length.First().ToCString()}
+              'units': length.First().ToCString().lower()}
 
   else:
     result = { 'error': 'Cannot read file' }
