@@ -47,7 +47,8 @@ def pick_lengths(bounding_box):
 def get_longest_dimension(bounding_box):
   lengths_only = pick_lengths(bounding_box)
   longest = max(pick_lengths(bounding_box).values())
-  return longest, lengths_only.keys()[lengths_only.values().index(longest)]
+  longest_length = lengths_only.keys()[lengths_only.values().index(longest)]
+  return longest, longest_length[0]
 
 def second_longest_dimension(bounding_box):
   lengths_only = pick_lengths(bounding_box)
@@ -55,33 +56,44 @@ def second_longest_dimension(bounding_box):
   lengths.sort()
   return lengths[1]
 
+def x_axis(bounding_box):
+  axis_direction = gp_Dir(gp_XYZ(1,0,0))
+  axis_origin = gp_Pnt(
+    bounding_box['x_min'],
+    (bounding_box['y_min'] + bounding_box['y_max']) / 2,
+    (bounding_box['z_min'] + bounding_box['z_max']) / 2
+  )
+  return gp_Ax2(axis_origin, axis_direction)
+
+def y_axis(bounding_box):
+  axis_direction = gp_Dir(gp_XYZ(0,1,0))
+  axis_origin = gp_Pnt(
+    (bounding_box['x_min'] + bounding_box['x_max']) / 2,
+    bounding_box['y_min'],
+    (bounding_box['z_min'] + bounding_box['z_max']) / 2
+  )
+  return gp_Ax2(axis_origin, axis_direction)
+
+def z_axis(bounding_box):
+  axis_direction = gp_Dir(gp_XYZ(0,0,1))
+  axis_origin = gp_Pnt(
+    (bounding_box['x_min'] + bounding_box['x_max']) / 2,
+    (bounding_box['y_min'] + bounding_box['y_max']) / 2,
+    bounding_box['z_min']
+  )
+  return gp_Ax2(axis_origin, axis_direction)
+
 def determine_axis(bounding_box):
   l, longest_dimension = get_longest_dimension(bounding_box)
-  axis_origin = None
-  axis_direction = None
+  axis = None
   if longest_dimension == 'x_length':
-    axis_direction = gp_Dir(gp_XYZ(1,0,0))
-    axis_origin = gp_Pnt(
-      bounding_box['x_min'],
-      (bounding_box['y_min'] + bounding_box['y_max']) / 2,
-      (bounding_box['z_min'] + bounding_box['z_max']) / 2
-    )
+    axis = x_axis(bounding_box)
   elif longest_dimension == 'y_length':
-    axis_direction = gp_Dir(gp_XYZ(0,1,0))
-    axis_origin = gp_Pnt(
-      (bounding_box['x_min'] + bounding_box['x_max']) / 2,
-      bounding_box['y_min'],
-      (bounding_box['z_min'] + bounding_box['z_max']) / 2
-    )
+    axis = y_axis(bounding_box)
   else:
-    axis_direction = gp_Dir(gp_XYZ(0,0,1))
-    axis_origin = gp_Pnt(
-      (bounding_box['x_min'] + bounding_box['x_max']) / 2,
-      (bounding_box['y_min'] + bounding_box['y_max']) / 2,
-      bounding_box['z_min']
-    )
+    axis = z_axis(bounding_box)
 
-  return gp_Ax2(axis_origin, axis_direction)
+  return axis
 
 def orient_cylinder(bounding_box):
   # radius as the diagonal of bounding box
@@ -99,23 +111,64 @@ def cylinder_cut_excess_volume(shape, cylinder):
   cut = BRepAlgoAPI_Cut(shape, cylinder.Shape())
   return calculate_volume(cut.Shape())
 
-def calculate_bounding_cylinder(shape, bounding_box):
+def get_axis(dimension, bounding_box):
+  axis_fn = dimension + '_axis'
+  return globals()[axis_fn](bounding_box)
+
+def cylinder_dict(cylinder, cut, radius, height):
+  return {
+      'radius': radius,
+      'height': height,
+      'cylinder_volume': height * (radius ** 2) * math.pi,
+      'cylinder': cylinder,
+      'cut': cut,
+      'cut_vol': calculate_volume(cut.Shape())
+      }
+
+def min_cylinder(height_dimension, shape, bounding_box):
+  axis = get_axis(height_dimension, bounding_box)
+  lengths = pick_lengths(bounding_box)
+  height_length = height_dimension + '_length'
+  height = bounding_box[height_length]
+  radius = max([ value for key, value in lengths.iteritems() if key != height_length ]) / 2
+  cylinder = BRepPrimAPI_MakeCylinder(axis, radius, height)
+  cut = BRepAlgoAPI_Cut(shape, cylinder.Shape())
+  return cylinder_dict(cylinder, cut, radius, height)
+
+def try_min_cylinders(shape, bounding_box):
+  x = min_cylinder('x', shape, bounding_box)
+  y = min_cylinder('y', shape, bounding_box)
+  z = min_cylinder('z', shape, bounding_box)
+
+  bounding = [ i for i in [x,y,z] if i['cut_vol'] == 0.0 ]
+
+  if bounding:
+    min_volume = min([ i['cylinder_volume'] for i in bounding ])
+    min_bounding = [ i for i in bounding if i['cylinder_volume'] == min_volume ]
+    return min_bounding[0]
+  else:
+    return None
+
+def smallest_max_cylinder(shape, bounding_box):
   # cylinder with diagonal of smaller face of bounding box
-  axis = determine_axis(bounding_box)
   height, longest_dimension = get_longest_dimension(bounding_box)
+  longest_length = longest_dimension + '_length'
 
-  cylinder = None
-  cylinder_vol = 0
-  cut_vol = 1
-  radius = second_longest_dimension(bounding_box) / 2
+  lengths = pick_lengths(bounding_box)
+  face_sides = [ value for key, value in lengths.iteritems() if key != longest_length ]
+  radius = math.sqrt(sum([i ** 2 for i in face_sides]))
 
-  while cut_vol > 0.0:
-    cylinder = BRepPrimAPI_MakeCylinder(axis, radius, height)
-    cylinder_vol = calculate_volume(cylinder.Shape())
-    cut_vol = cylinder_cut_excess_volume(shape, cylinder)
-    radius = radius + 0.1
+  axis = get_axis(longest_dimension, bounding_box)
+  cylinder = BRepPrimAPI_MakeCylinder(axis, radius, height)
+  cut = BRepAlgoAPI_Cut(shape, cylinder.Shape())
+  return cylinder_dict(cylinder, cut, radius, height)
 
-  return cylinder
+def calculate_bounding_cylinder(shape, bounding_box):
+  cylinder = try_min_cylinders(shape, bounding_box)
+  if cylinder:
+    return cylinder
+  else:
+    return smallest_max_cylinder(shape, bounding_box)
 
 def calculate_volume(shape):
   props = GProp_GProps()
@@ -154,10 +207,14 @@ def analyze_file(filename):
 
     bounding_cylinder = calculate_bounding_cylinder(aResShape, bounding_box)
 
-    result = {'bounding_box_volume': bounding_box['volume'],
+    result = {'bounding_box': bounding_box,
               'mesh_volume': calculate_volume(aResShape),
               'mesh_surface_area': None,
-              'cylinder_volume': calculate_volume(bounding_cylinder.Shape()),
+              'bounding_cylinder': {
+                'volume': bounding_cylinder['cylinder_volume'],
+                'radius': bounding_cylinder['radius'],
+                'height': bounding_cylinder['height']
+              },
               'convex_hull_volume': None,
               'euler_number': None,
               'units': length.First().ToCString()}
