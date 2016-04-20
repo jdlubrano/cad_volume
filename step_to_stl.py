@@ -1,24 +1,53 @@
+import getopt
 import os
+import sys
+
 from OCC.StlAPI import StlAPI_Writer
 from OCC.STEPControl import STEPControl_Reader
 from OCC.IFSelect import IFSelect_RetDone, IFSelect_ItemsByEntity
 
-step_reader = STEPControl_Reader()
-status = step_reader.ReadFile('./demo.stp')
+def usage():
+  print('step_to_stl.py -i source -o dest')
+  sys.exit(2)
 
-if status == IFSelect_RetDone:
-    ok = step_reader.TransferRoot(1)
-    shape = step_reader.Shape(1)
-    working_dir = os.path.split(__name__)[0]
-    output_dir = os.path.abspath(working_dir)
-    output = os.path.join(output_dir, 'demo.stl')
-    stl_ascii = False
-    stl_writer = StlAPI_Writer()
-    stl_writer.SetASCIIMode(stl_ascii)
-    stl_writer.Write(shape, output)
-    print "STL FILE: %s" % output
+def convert(source, dest):
+  step_reader = STEPControl_Reader()
+  status = step_reader.ReadFile(source)
 
-else:
-    print "Error, can't read file: %s" % './demo.stp'
-    sys.exit(1)
+  if status == IFSelect_RetDone:
+      ok = step_reader.TransferRoot(1)
+      shape = step_reader.Shape(1)
+      output = os.path.abspath(dest)
+      stl_ascii = False
+      stl_writer = StlAPI_Writer()
+      stl_writer.SetASCIIMode(stl_ascii)
+      stl_writer.Write(shape, output)
+      print "STL FILE: %s" % output
+
+  else:
+      print "Error, can't read file: %s" % './demo.stp'
+
+def main(argv):
+  try:
+    opts, args = getopt.getopt(argv, "hi:o:", ["infile=", "outfile="])
+  except getopt.GetoptError:
+    usage()
+
+  source = None
+  dest = None
+  for opt, arg in opts:
+    if opt in ("-i", "--infile"):
+      source = arg
+    if opt in ("-o", "--outfile"):
+      dest = arg
+
+  if source != None and dest != None:
+    convert(source, dest)
+  else:
+    usage()
+
+  sys.exit(0)
+
+if __name__ == '__main__':
+  main(sys.argv[1:])
 
