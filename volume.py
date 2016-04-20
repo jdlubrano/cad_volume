@@ -50,12 +50,6 @@ def get_longest_dimension(bounding_box):
   longest_length = lengths_only.keys()[lengths_only.values().index(longest)]
   return longest, longest_length[0]
 
-def second_longest_dimension(bounding_box):
-  lengths_only = pick_lengths(bounding_box)
-  lengths = lengths_only.values()
-  lengths.sort()
-  return lengths[1]
-
 def x_axis(bounding_box):
   axis_direction = gp_Dir(gp_XYZ(1,0,0))
   axis_origin = gp_Pnt(
@@ -94,22 +88,6 @@ def determine_axis(bounding_box):
     axis = z_axis(bounding_box)
 
   return axis
-
-def orient_cylinder(bounding_box):
-  # radius as the diagonal of bounding box
-  height = get_longest_dimension(bounding_box)
-  dimensions = lengths_only.values()
-  dimensions.sort()
-  short_dimensions = dimensions[0:2]
-  diag = math.sqrt(sum([i ** 2 for i in short_dimensions]))
-  return axis, longest
-
-def cylinder_volume(axis, radius, height):
-  return calculate_volume(cylinder.Shape()), calculate_volume(cut.Shape())
-
-def cylinder_cut_excess_volume(shape, cylinder):
-  cut = BRepAlgoAPI_Cut(shape, cylinder.Shape())
-  return calculate_volume(cut.Shape())
 
 def get_axis(dimension, bounding_box):
   axis_fn = dimension + '_axis'
@@ -208,6 +186,7 @@ def analyze_file(filename):
     bounding_cylinder = calculate_bounding_cylinder(aResShape, bounding_box)
 
     result = {'bounding_box': bounding_box,
+              'bounding_box_volume': bounding_box['volume'],
               'mesh_volume': calculate_volume(aResShape),
               'mesh_surface_area': None,
               'bounding_cylinder': {
@@ -215,6 +194,7 @@ def analyze_file(filename):
                 'radius': bounding_cylinder['radius'],
                 'height': bounding_cylinder['height']
               },
+              'cylinder_volume': bounding_cylinder['cylinder_volume'],
               'convex_hull_volume': None,
               'euler_number': None,
               'units': length.First().ToCString().lower()}
