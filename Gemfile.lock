@@ -1,0 +1,25 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    awesome_print (1.6.1)
+    aws-sdk (2.2.35)
+      aws-sdk-resources (= 2.2.35)
+    aws-sdk-core (2.2.35)
+      jmespath (~> 1.0)
+    aws-sdk-resources (2.2.35)
+      aws-sdk-core (= 2.2.35)
+    jmespath (1.2.4)
+      json_pure (>= 1.8.1)
+    json_pure (1.8.3)
+    pg (0.18.4)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  awesome_print (~> 1.6.1)
+  aws-sdk (~> 2)
+  pg (~> 0.18.4)
+
+BUNDLED WITH
+   1.11.2
