@@ -220,8 +220,13 @@ def main(argv):
       filename = arg
 
   if filename != None:
-    result = analyze_file(filename)
+    try:
+      result = analyze_file(filename)
+    except RuntimeError as e:
+      result = { 'error': e.message }
+
     print(json.dumps(result))
+
   else:
     result = { 'error': 'No filename provided' }
     print(json.dumps(result))

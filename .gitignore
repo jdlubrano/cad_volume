@@ -1,4 +1,6 @@
 .byebug_history
 /**/byebug_history
 /testing/models
+/**/*.ods
+/**/*.csv
 

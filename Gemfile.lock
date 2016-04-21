@@ -8,10 +8,23 @@ GEM
       jmespath (~> 1.0)
     aws-sdk-resources (2.2.35)
       aws-sdk-core (= 2.2.35)
+    blankslate (3.1.3)
     jmespath (1.2.4)
       json_pure (>= 1.8.1)
     json_pure (1.8.3)
+    liner (0.2.4)
+    memoizable (0.4.2)
+      thread_safe (~> 0.3, >= 0.3.1)
+    parslet (1.7.1)
+      blankslate (>= 2.0, <= 4.0)
     pg (0.18.4)
+    signed_multiset (0.2.1)
+    thread_safe (0.3.5)
+    unitwise (2.0.0)
+      liner (~> 0.2)
+      memoizable (~> 0.4)
+      parslet (~> 1.5)
+      signed_multiset (~> 0.2)
 
 PLATFORMS
   ruby
@@ -20,6 +33,7 @@ DEPENDENCIES
   awesome_print (~> 1.6.1)
   aws-sdk (~> 2)
   pg (~> 0.18.4)
+  unitwise (~> 2.0.0)
 
 BUNDLED WITH
    1.11.2

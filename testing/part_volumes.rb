@@ -1,43 +1,66 @@
 require 'awesome_print'
-require 'aws-sdk'
-require 'pg'
 require 'byebug'
 
-class DbCxn
-  def initialize
-    @cxn = PG.connect(dbname: 'test_parts')
-  end
+require_relative 'lib/part'
+require_relative 'lib/part_analysis'
+require_relative 'lib/step_downloader'
 
-  def exec(sql)
-    @cxn.exec(sql) { |result| yield result }
+StepDownloader.new.get_step_files
+
+BOX_HEADERS = %w(Part_ID File Asset_ID units length width thickness x y z).freeze
+
+CYL_HEADERS = %w(Part_ID File Asset_ID units platform_diameter
+                 platform_length diameter length).freeze
+
+boxes_csv = [BOX_HEADERS]
+cylinders_csv = [CYL_HEADERS]
+
+def box_row(part, part_analysis)
+  [
+    part['id'],
+    part['file'],
+    part['asset_id'],
+    part['units'],
+    part['length'],
+    part['width'],
+    part['thickness'],
+    part_analysis.x,
+    part_analysis.y,
+    part_analysis.z
+  ]
+end
+
+def cylinder_row(part, part_analysis)
+  [
+    part['id'],
+    part['file'],
+    part['asset_id'],
+    part['units'],
+    part['diameter'],
+    part['length'],
+    part_analysis.diameter,
+    part_analysis.height
+  ]
+end
+
+Part.all do |part|
+  next if part.length.nil?
+  pa = PartAnalysis.new(part)
+  pa.run
+  if pa.cylindrical?
+    cylinders_csv.push cylinder_row(part, pa)
+  else
+    boxes_csv.push box_row(part, pa)
   end
 end
 
-class Bucket
-  def initialize
-    credentials = Aws::SharedCredentials.new(profile_name: 'maketime')
-    @client = Aws::S3::Client.new(credentials: credentials, region: 'us-west-2')
-    @resource = Aws::S3::Resource.new(client: @client)
-    @bucket = @resource.bucket('maketime-server-app')
-  end
-
-  def list
-    if @bucket.exists?
-      @bucket.objects.limit(3).each do |obj|
-        puts "#{obj.key} => #{obj.etag}"
-      end
-    else
-      puts 'Bucket does not exist'
-    end
-  end
+File.open('boxes.csv', 'w') do |file|
+  boxes_csv.map! { |row| row.join(',') }
+  file.write boxes_csv.join("\n")
 end
 
-db = DbCxn.new
-
-db.exec('SELECT * FROM parts LIMIT 1') do |result|
-  byebug
+File.open('cylinders.csv', 'w') do |file|
+  cylinders_csv.map! { |row| row.join(',') }
+  file.write cylinders_csv.join("\n")
 end
-
-bucket = Bucket.new
-bucket.list
 
