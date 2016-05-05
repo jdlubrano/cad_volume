@@ -185,16 +185,15 @@ def analyze_file(filename):
 
     bounding_cylinder = calculate_bounding_cylinder(aResShape, bounding_box)
 
-    result = {'bounding_box': bounding_box,
-              'bounding_box_volume': bounding_box['volume'],
+    result = {'bounding_box_volume': bounding_box['volume'],
+              'bounding_box_x_length': bounding_box['x_length'],
+              'bounding_box_y_length': bounding_box['y_length'],
+              'bounding_box_z_length': bounding_box['z_length'],
               'mesh_volume': calculate_volume(aResShape),
               'mesh_surface_area': None,
-              'bounding_cylinder': {
-                'volume': bounding_cylinder['cylinder_volume'],
-                'radius': bounding_cylinder['radius'],
-                'height': bounding_cylinder['height']
-              },
               'cylinder_volume': bounding_cylinder['cylinder_volume'],
+              'cylinder_diameter': bounding_cylinder['radius'] * 2,
+              'cylinder_length': bounding_cylinder['height'],
               'convex_hull_volume': None,
               'euler_number': None,
               'units': length.First().ToCString().lower()}
@@ -223,7 +222,7 @@ def main(argv):
     try:
       result = analyze_file(filename)
     except RuntimeError as e:
-      result = { 'error': e.message }
+      result = { 'error': e.message, 'filename': filename }
 
     print(json.dumps(result))
 
@@ -235,4 +234,3 @@ def main(argv):
 
 if __name__ == '__main__':
   main(sys.argv[1:])
-
