@@ -3,4 +3,6 @@
 /testing/models
 /**/*.ods
 /**/*.csv
+/**/.DS_Store
+/**/*.zip
 
