@@ -160,11 +160,17 @@ def analyze_file(filename):
 
   if status == IFSelect_RetDone:  # check status
     number_of_roots = step_reader.NbRootsForTransfer()
-    ok = step_reader.TransferRoot(1)
-    number_of_shapes = step_reader.NbShapes()
+    ok = False
+    i = 1
+
+    while i <= number_of_roots and not ok:
+      ok = step_reader.TransferRoot(i)
+      i += 1
 
     if (not ok):
       return { 'error': 'Failed to find a suitable root for the STEP file' }
+
+    number_of_shapes = step_reader.NbShapes()
 
     if (number_of_shapes > 1):
       return { 'error': 'Cannot handle more than one shape in a file' }

@@ -15,7 +15,15 @@ def main(argv):
       step_reader.PrintCheckLoad(failsonly, IFSelect_ItemsByEntity)
       step_reader.PrintCheckTransfer(failsonly, IFSelect_ItemsByEntity)
 
-      ok = step_reader.TransferRoot(1)
+      number_of_roots = step_reader.NbRootsForTransfer()
+
+      ok = False
+      i = 1
+
+      while not ok or i <= number_of_roots:
+        ok = step_reader.TransferRoot(i)
+        i += 1
+
       _nbs = step_reader.NbShapes()
       aResShape = step_reader.Shape(1)
   else:
