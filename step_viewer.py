@@ -20,7 +20,7 @@ def main(argv):
       ok = False
       i = 1
 
-      while not ok or i <= number_of_roots:
+      while not ok and i <= number_of_roots:
         ok = step_reader.TransferRoot(i)
         i += 1
 
