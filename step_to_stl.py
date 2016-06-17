@@ -15,14 +15,24 @@ def convert(source, dest):
   status = step_reader.ReadFile(source)
 
   if status == IFSelect_RetDone:
-      ok = step_reader.TransferRoot(1)
-      shape = step_reader.Shape(1)
-      output = os.path.abspath(dest)
-      stl_ascii = False
-      stl_writer = StlAPI_Writer()
-      stl_writer.SetASCIIMode(stl_ascii)
-      stl_writer.Write(shape, output)
-      print "STL FILE: %s" % output
+    i = 1
+    ok = False
+    number_of_roots = step_reader.NbRootsForTransfer()
+
+    while i <= number_of_roots and not ok:
+      ok = step_reader.TransferRoot(i)
+      i += 1
+
+    if (not ok):
+      return { 'error': 'Failed to find a suitable root for the STEP file' }
+
+    shape = step_reader.Shape(1)
+    output = os.path.abspath(dest)
+    stl_ascii = False
+    stl_writer = StlAPI_Writer()
+    stl_writer.SetASCIIMode(stl_ascii)
+    stl_writer.Write(shape, output)
+    print "STL FILE: %s" % output
 
   else:
       print "Error, can't read file: %s" % './demo.stp'
